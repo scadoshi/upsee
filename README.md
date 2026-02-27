@@ -1,6 +1,15 @@
 # upsee
 
-Camera + AI pose estimation in Rust. Uses [MoveNet](https://huggingface.co/qualcomm/Movenet) via [tract](https://github.com/sonos/tract) for on-device keypoint detection. Starting as a pullup counter, built to generalize.
+Real-time pullup counter in Rust. Uses a webcam and [MoveNet](https://huggingface.co/qualcomm/Movenet) pose estimation via [tract](https://github.com/sonos/tract) to track shoulder and wrist keypoints, detect pullup reps with a state machine, and display a live count in the terminal.
+
+## How it works
+
+1. Captures frames from your webcam
+2. Square-crops and resizes to 192x192 for MoveNet input
+3. Runs on-device ONNX inference to extract 17 body keypoints
+4. Compares shoulder position to wrist position each frame
+5. Uses a Down/Up state machine with hysteresis to count reps
+6. Skips low-confidence frames to avoid miscounts
 
 ## Setup
 
@@ -11,22 +20,21 @@ Camera + AI pose estimation in Rust. Uses [MoveNet](https://huggingface.co/qualc
 
 ### Get the model
 
-Download a MoveNet ONNX model and unzip it in the project root so you have `movenet-onnx-float/movenet.onnx` at the top level:
-
 ```sh
+mkdir -p models
+cd models
 wget https://qaihub-public-assets.s3.us-west-2.amazonaws.com/qai-hub-models/models/movenet/releases/v0.46.0/movenet-onnx-float.zip
 unzip movenet-onnx-float.zip
+cd ..
 ```
-
-This downloads the full-precision float model. A [quantized version](https://huggingface.co/qualcomm/Movenet) is also available if you need smaller/faster inference (e.g. on a Raspberry Pi).
 
 ### Run
 
 ```sh
-cargo run
+cargo run --release
 ```
 
-Captures a frame from your webcam, runs MoveNet inference, and prints 17 body keypoints with coordinates and confidence scores.
+Stand back far enough that the camera can see your full upper body for best results. The terminal clears and displays the current rep count as you go.
 
 ## License
 
