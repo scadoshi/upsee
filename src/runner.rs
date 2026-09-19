@@ -49,13 +49,15 @@ impl Runner {
         let mut state = PullupState::Down;
         let mut reps = 0u32;
 
-        println!("Count: {}", reps);
+        println!("Count: {reps}");
         loop {
             let mut image = camera.frame()?.decode_image::<RgbFormat>()?;
             let resized = resize(image.square().inner(), 192, 192, FilterType::Triangle);
+            // x and y are bounded by the 192x192 shape, so the casts cannot truncate
+            #[expect(clippy::cast_possible_truncation)]
             let image: Tensor =
                 tract_ndarray::Array4::from_shape_fn((1, 3, 192, 192), |(_, c, y, x)| {
-                    resized[(x as _, y as _)][c] as f32 / 255.0
+                    f32::from(resized[(x as u32, y as u32)][c]) / 255.0
                 })
                 .into();
             let result = model.run(tvec!(image.into()))?;
@@ -71,10 +73,14 @@ impl Runner {
                 continue;
             }
 
-            let avg_shoulder_y =
-                (output[[0, 0, LEFT_SHOULDER, 0]] + output[[0, 0, RIGHT_SHOULDER, 0]]) / 2.0;
-            let avg_wrist_y =
-                (output[[0, 0, LEFT_WRIST, 0]] + output[[0, 0, RIGHT_WRIST, 0]]) / 2.0;
+            let avg_shoulder_y = f32::midpoint(
+                output[[0, 0, LEFT_SHOULDER, 0]],
+                output[[0, 0, RIGHT_SHOULDER, 0]],
+            );
+            let avg_wrist_y = f32::midpoint(
+                output[[0, 0, LEFT_WRIST, 0]],
+                output[[0, 0, RIGHT_WRIST, 0]],
+            );
             let diff = avg_shoulder_y - avg_wrist_y;
 
             match state {
@@ -83,7 +89,7 @@ impl Runner {
                         state = PullupState::Up;
                         reps += 1;
                         print!("\x1B[2J\x1B[H");
-                        println!("Count: {}", reps);
+                        println!("Count: {reps}");
                         if reps == 5 {
                             println!("\nJust getting started!");
                         } else if reps == 10 {
