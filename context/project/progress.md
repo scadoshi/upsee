@@ -15,6 +15,7 @@
 - [x] Count and display reps in real-time (clear terminal, show count)
 - [x] Add confidence threshold to skip low-quality frames
 - [x] Motivational messages at rep milestones
+- [x] Counter, milestones and crop bounds split into `domain.rs` with tests; camera and model are adapters
 
 ## Known Issues
 

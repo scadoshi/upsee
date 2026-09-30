@@ -4,12 +4,11 @@ Real-time pullup counter in Rust. Uses a webcam and [MoveNet](https://huggingfac
 
 ## How it works
 
-1. Captures frames from your webcam
-2. Square-crops and resizes to 192x192 for MoveNet input
-3. Runs on-device ONNX inference to extract 17 body keypoints
-4. Compares shoulder position to wrist position each frame
-5. Uses a Down/Up state machine with hysteresis to count reps
-6. Skips low-confidence frames to avoid miscounts
+1. Captures frames from your webcam (`src/camera.rs`)
+2. Square-crops and resizes to 192x192, runs MoveNet on-device, and reads the shoulder and wrist keypoints out (`src/movenet.rs`)
+3. Feeds each pose to a counter that flips Down to Up when the shoulders reach the wrists and back when they drop away, with a gap between the two so a wobble at either end never counts twice. Frames under a confidence floor are ignored (`src/domain.rs`)
+
+The counter, the milestone messages and the crop bounds are plain functions with no camera or model behind them, and `cargo test` covers them. The thresholds are `Thresholds::default()` in `src/domain.rs`.
 
 ## Setup
 
