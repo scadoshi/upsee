@@ -123,7 +123,7 @@ pub fn milestone(reps: u32) -> Option<&'static str> {
     })
 }
 
-/// The centred square inside a `width` by `height` frame: its top-left corner
+/// The centered square inside a `width` by `height` frame: its top-left corner
 /// and side.
 pub fn square_bounds(width: u32, height: u32) -> (u32, u32, u32) {
     let side = width.min(height);
@@ -253,7 +253,7 @@ mod tests {
     }
 
     #[test]
-    fn square_bounds_centre_the_short_side() {
+    fn square_bounds_center_the_short_side() {
         assert_eq!(square_bounds(1920, 1080), (420, 0, 1080));
         assert_eq!(square_bounds(1080, 1920), (0, 420, 1080));
         assert_eq!(square_bounds(640, 640), (0, 0, 640));
