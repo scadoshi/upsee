@@ -40,8 +40,7 @@ Two versions:
 - `movenet-onnx-float.zip` (full precision) - currently using
 - `movenet-onnx-w8a16_mixed_int16.zip` (quantized, smaller/faster for Pi)
 
-**Input**: 192x192 pixels, NCHW format, values 0-1 range
-**Output**: [1, 1, 17, 3] - 17 keypoints, each with (y, x, confidence)
+**Input**: 192x192 pixels, NCHW format, values 0-1 range **Output**: [1, 1, 17, 3] - 17 keypoints, each with (y, x, confidence)
 
 17 keypoints: nose, left/right eye, left/right ear, left/right shoulder, left/right elbow, left/right wrist, left/right hip, left/right knee, left/right ankle
 
