@@ -1,7 +1,10 @@
 //! `MoveNet` through tract: a frame in, the four keypoints out.
 
 use image::imageops::{FilterType, crop_imm, resize};
-use tract_onnx::prelude::*;
+use tract_onnx::prelude::{
+    Framework, Graph, InferenceModelExt, SimplePlan, Tensor, TypedFact, TypedOp, tract_ndarray,
+    tvec,
+};
 
 use crate::camera::Frame;
 use crate::domain::{Keypoint, Pose, square_bounds};
