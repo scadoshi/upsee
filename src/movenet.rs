@@ -1,11 +1,10 @@
 //! `MoveNet` through tract: a frame in, the four keypoints out.
 
-use crate::{
-    camera::Frame,
-    domain::{Keypoint, Pose, square_bounds},
-};
 use image::imageops::{FilterType, crop_imm, resize};
 use tract_onnx::prelude::*;
+
+use crate::camera::Frame;
+use crate::domain::{Keypoint, Pose, square_bounds};
 
 const MODEL_PATH: &str = "models/movenet-onnx-float/movenet.onnx";
 /// `MoveNet` Lightning takes a square of this many pixels.

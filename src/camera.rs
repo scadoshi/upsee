@@ -1,10 +1,8 @@
 //! The webcam: the first camera on the machine, at its highest frame rate.
 
 use image::{ImageBuffer, Rgb};
-use nokhwa::{
-    pixel_format::RgbFormat,
-    utils::{CameraIndex, RequestedFormat, RequestedFormatType},
-};
+use nokhwa::pixel_format::RgbFormat;
+use nokhwa::utils::{CameraIndex, RequestedFormat, RequestedFormatType};
 
 pub type Frame = ImageBuffer<Rgb<u8>, Vec<u8>>;
 

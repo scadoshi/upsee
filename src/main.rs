@@ -2,10 +2,11 @@ mod camera;
 mod domain;
 mod movenet;
 
+use std::process::ExitCode;
+
 use camera::Camera;
 use domain::{Counter, Thresholds, milestone};
 use movenet::MoveNet;
-use std::process::ExitCode;
 
 fn run() -> anyhow::Result<()> {
     let mut camera = Camera::open()?;
