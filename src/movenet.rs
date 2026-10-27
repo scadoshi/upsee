@@ -2,6 +2,7 @@
 
 use std::fmt;
 
+use anyhow::Context;
 use image::RgbImage;
 use image::imageops::{FilterType, crop_imm, resize};
 use tract_onnx::prelude::tract_ndarray::{Array3, ArrayViewD, Axis, Ix4};
@@ -45,7 +46,10 @@ impl MoveNet {
     pub(crate) fn load() -> anyhow::Result<Self> {
         Ok(Self(
             tract_onnx::onnx()
-                .model_for_path(MODEL_PATH)?
+                .model_for_path(MODEL_PATH)
+                .with_context(|| {
+                    format!("loading {MODEL_PATH}; the README shows how to download it")
+                })?
                 .into_optimized()?
                 .into_runnable()?,
         ))
