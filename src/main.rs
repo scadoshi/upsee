@@ -5,7 +5,7 @@ mod domain;
 mod movenet;
 
 use camera::Camera;
-use domain::{Counter, Thresholds, milestone};
+use domain::{Counter, Thresholds};
 use movenet::MoveNet;
 
 /// Loads the model and opens the camera, then counts reps until the process is stopped.
@@ -20,7 +20,7 @@ fn main() -> anyhow::Result<()> {
             // Clears the terminal and moves the cursor home.
             print!("\x1B[2J\x1B[H");
             println!("Count: {reps}");
-            if let Some(message) = milestone(reps) {
+            if let Some(message) = domain::milestone(reps) {
                 println!("\n{message}");
             }
         }

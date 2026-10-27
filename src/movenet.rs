@@ -4,14 +4,14 @@ use std::fmt;
 
 use anyhow::Context;
 use image::RgbImage;
-use image::imageops::{FilterType, crop_imm, resize};
+use image::imageops::{self, FilterType};
 use tract_onnx::prelude::tract_ndarray::{Array3, ArrayViewD, Axis, Ix4};
 use tract_onnx::prelude::{
     Framework, Graph, InferenceModelExt, SimplePlan, Tensor, TypedFact, TypedOp, tvec,
 };
 
 use crate::camera::Frame;
-use crate::domain::{Keypoint, Pose, square_bounds};
+use crate::domain::{self, Keypoint, Pose};
 
 /// Where the README's download unpacks the model, relative to the working directory.
 const MODEL_PATH: &str = "models/movenet-onnx-float/movenet.onnx";
@@ -62,9 +62,9 @@ impl MoveNet {
     ///
     /// Returns an error if the input cannot be shaped, or the model fails to run or returns no output or an output of the wrong shape.
     pub(crate) fn pose(&self, frame: &Frame) -> anyhow::Result<Pose> {
-        let (x, y, side) = square_bounds(frame.width(), frame.height());
-        let square = crop_imm(frame, x, y, side, side).to_image();
-        let resized = resize(&square, INPUT_SIDE, INPUT_SIDE, FilterType::Triangle);
+        let (x, y, side) = domain::square_bounds(frame.width(), frame.height());
+        let square = imageops::crop_imm(frame, x, y, side, side).to_image();
+        let resized = imageops::resize(&square, INPUT_SIDE, INPUT_SIDE, FilterType::Triangle);
         let input = input(resized)?;
         let output = self.0.run(tvec!(input.into()))?;
         let output = output
