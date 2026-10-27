@@ -128,29 +128,24 @@ mod tests {
 
     #[test]
     fn input_is_channels_first_and_scaled_to_one() -> anyhow::Result<()> {
+        let byte = |value: u32| value.to_le_bytes()[0];
         let image = RgbImage::from_fn(INPUT_SIDE, INPUT_SIDE, |x, y| {
-            image::Rgb([
-                (x % 256) as u8,
-                (y % 256) as u8,
-                ((x * 7 + y * 13) % 256) as u8,
-            ])
+            image::Rgb([byte(x), byte(y), byte(x ^ y)])
         });
         let tensor = input(image.clone())?;
-        let view = tensor.to_array_view::<f32>()?;
-        let side = INPUT_SIDE as usize;
+        let view = tensor
+            .to_array_view::<f32>()?
+            .into_dimensionality::<Ix4>()?;
+        let side = usize::try_from(INPUT_SIDE)?;
         assert_eq!(view.shape(), [1, 3, side, side]);
-        for y in 0..INPUT_SIDE {
-            for x in 0..INPUT_SIDE {
-                for c in 0..3 {
-                    let want = f32::from(image.get_pixel(x, y)[c]) / 255.0;
-                    let got = view[[0, c, y as usize, x as usize]];
-                    assert_eq!(
-                        got.to_bits(),
-                        want.to_bits(),
-                        "pixel ({x}, {y}) channel {c}"
-                    );
-                }
-            }
+        for ((_, c, y, x), got) in view.indexed_iter() {
+            let pixel = image.get_pixel(u32::try_from(x)?, u32::try_from(y)?);
+            let want = f32::from(pixel[c]) / 255.0;
+            assert_eq!(
+                got.to_bits(),
+                want.to_bits(),
+                "pixel ({x}, {y}) channel {c}"
+            );
         }
         Ok(())
     }
@@ -158,7 +153,8 @@ mod tests {
     #[test]
     fn keypoints_read_y_and_confidence_by_movenet_index() -> anyhow::Result<()> {
         let output = ArrayD::from_shape_fn(IxDyn(&[1, 1, 17, 3]), |index| {
-            (index[2] * 10 + index[3]) as f32
+            f32::from(u8::try_from(index[2]).unwrap()) * 10.0
+                + f32::from(u8::try_from(index[3]).unwrap())
         });
         let pose = keypoints(&output.view())?;
         assert_eq!(
