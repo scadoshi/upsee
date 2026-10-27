@@ -4,7 +4,7 @@ use std::fmt;
 
 use image::RgbImage;
 use image::imageops::{FilterType, crop_imm, resize};
-use tract_onnx::prelude::tract_ndarray::{Array3, Axis};
+use tract_onnx::prelude::tract_ndarray::{Array3, ArrayViewD, Axis, Ix4};
 use tract_onnx::prelude::{
     Framework, Graph, InferenceModelExt, SimplePlan, Tensor, TypedFact, TypedOp, tvec,
 };
@@ -56,7 +56,7 @@ impl MoveNet {
     ///
     /// # Errors
     ///
-    /// Returns an error if the input cannot be shaped, or the model fails to run or returns no output.
+    /// Returns an error if the input cannot be shaped, or the model fails to run or returns no output or an output of the wrong shape.
     pub(crate) fn pose(&self, frame: &Frame) -> anyhow::Result<Pose> {
         let (x, y, side) = square_bounds(frame.width(), frame.height());
         let square = crop_imm(frame, x, y, side, side).to_image();
@@ -67,18 +67,40 @@ impl MoveNet {
             .first()
             .ok_or_else(|| anyhow::anyhow!("model returned no output"))?
             .to_array_view::<f32>()?;
-        // Each keypoint is (y, x, confidence).
-        let keypoint = |index| Keypoint {
-            y: output[[0, 0, index, 0]],
-            confidence: output[[0, 0, index, 2]],
-        };
-        Ok(Pose {
-            left_shoulder: keypoint(LEFT_SHOULDER),
-            right_shoulder: keypoint(RIGHT_SHOULDER),
-            left_wrist: keypoint(LEFT_WRIST),
-            right_wrist: keypoint(RIGHT_WRIST),
-        })
+        keypoints(&output)
     }
+}
+
+/// Reads the shoulders and wrists out of the model's `[1, 1, 17, 3]` output, where each keypoint is (y, x, confidence).
+fn keypoints(output: &ArrayViewD<'_, f32>) -> anyhow::Result<Pose> {
+    let wrong_shape = || {
+        anyhow::anyhow!(
+            "model output has shape {:?}, expected [1, 1, 17, 3]",
+            output.shape()
+        )
+    };
+    let output = output
+        .view()
+        .into_dimensionality::<Ix4>()
+        .map_err(|_| wrong_shape())?;
+    let read = |index, field| {
+        output
+            .get([0, 0, index, field])
+            .copied()
+            .ok_or_else(wrong_shape)
+    };
+    let keypoint = |index| -> anyhow::Result<Keypoint> {
+        Ok(Keypoint {
+            y: read(index, 0)?,
+            confidence: read(index, 2)?,
+        })
+    };
+    Ok(Pose {
+        left_shoulder: keypoint(LEFT_SHOULDER)?,
+        right_shoulder: keypoint(RIGHT_SHOULDER)?,
+        left_wrist: keypoint(LEFT_WRIST)?,
+        right_wrist: keypoint(RIGHT_WRIST)?,
+    })
 }
 
 /// The model's input: the image as 1x3xHxW, channels first, each value scaled to 0..=1.
@@ -96,6 +118,8 @@ fn input(image: RgbImage) -> anyhow::Result<Tensor> {
 
 #[cfg(test)]
 mod tests {
+    use tract_onnx::prelude::tract_ndarray::{ArrayD, IxDyn};
+
     use super::*;
 
     #[test]
@@ -125,5 +149,50 @@ mod tests {
             }
         }
         Ok(())
+    }
+
+    #[test]
+    fn keypoints_read_y_and_confidence_by_movenet_index() -> anyhow::Result<()> {
+        let output = ArrayD::from_shape_fn(IxDyn(&[1, 1, 17, 3]), |index| {
+            (index[2] * 10 + index[3]) as f32
+        });
+        let pose = keypoints(&output.view())?;
+        assert_eq!(
+            pose.left_shoulder,
+            Keypoint {
+                y: 50.0,
+                confidence: 52.0
+            }
+        );
+        assert_eq!(
+            pose.right_shoulder,
+            Keypoint {
+                y: 60.0,
+                confidence: 62.0
+            }
+        );
+        assert_eq!(
+            pose.left_wrist,
+            Keypoint {
+                y: 90.0,
+                confidence: 92.0
+            }
+        );
+        assert_eq!(
+            pose.right_wrist,
+            Keypoint {
+                y: 100.0,
+                confidence: 102.0
+            }
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn an_output_of_the_wrong_shape_is_an_error() {
+        for shape in [&[1, 1, 5, 3][..], &[1, 1, 17, 2], &[17, 3], &[]] {
+            let output = ArrayD::<f32>::zeros(IxDyn(shape));
+            assert!(keypoints(&output.view()).is_err(), "shape {shape:?}");
+        }
     }
 }
