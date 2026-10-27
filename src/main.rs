@@ -4,14 +4,12 @@ mod camera;
 mod domain;
 mod movenet;
 
-use std::process::ExitCode;
-
 use camera::Camera;
 use domain::{Counter, Thresholds, milestone};
 use movenet::MoveNet;
 
 /// Loads the model and opens the camera, then counts reps until the process is stopped.
-fn run() -> anyhow::Result<()> {
+fn main() -> anyhow::Result<()> {
     let model = MoveNet::load()?;
     let mut camera = Camera::open()?;
     let mut counter = Counter::new(Thresholds::default());
@@ -25,16 +23,6 @@ fn run() -> anyhow::Result<()> {
             if let Some(message) = milestone(reps) {
                 println!("\n{message}");
             }
-        }
-    }
-}
-
-fn main() -> ExitCode {
-    match run() {
-        Ok(()) => ExitCode::SUCCESS,
-        Err(e) => {
-            eprintln!("{e}");
-            ExitCode::FAILURE
         }
     }
 }
