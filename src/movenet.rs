@@ -2,10 +2,11 @@
 
 use std::fmt;
 
+use image::RgbImage;
 use image::imageops::{FilterType, crop_imm, resize};
+use tract_onnx::prelude::tract_ndarray::{Array3, Axis};
 use tract_onnx::prelude::{
-    Framework, Graph, InferenceModelExt, SimplePlan, Tensor, TypedFact, TypedOp, tract_ndarray,
-    tvec,
+    Framework, Graph, InferenceModelExt, SimplePlan, Tensor, TypedFact, TypedOp, tvec,
 };
 
 use crate::camera::Frame;
@@ -55,18 +56,12 @@ impl MoveNet {
     ///
     /// # Errors
     ///
-    /// Returns an error if the model fails to run or returns no output.
+    /// Returns an error if the input cannot be shaped, or the model fails to run or returns no output.
     pub(crate) fn pose(&self, frame: &Frame) -> anyhow::Result<Pose> {
         let (x, y, side) = square_bounds(frame.width(), frame.height());
         let square = crop_imm(frame, x, y, side, side).to_image();
         let resized = resize(&square, INPUT_SIDE, INPUT_SIDE, FilterType::Triangle);
-        // x and y are bounded by INPUT_SIDE, so the casts cannot truncate.
-        #[expect(clippy::cast_possible_truncation)]
-        let input: Tensor = tract_ndarray::Array4::from_shape_fn(
-            (1, 3, INPUT_SIDE as usize, INPUT_SIDE as usize),
-            |(_, c, y, x)| f32::from(resized[(x as u32, y as u32)][c]) / 255.0,
-        )
-        .into();
+        let input = input(resized)?;
         let output = self.0.run(tvec!(input.into()))?;
         let output = output
             .first()
@@ -83,5 +78,52 @@ impl MoveNet {
             left_wrist: keypoint(LEFT_WRIST),
             right_wrist: keypoint(RIGHT_WRIST),
         })
+    }
+}
+
+/// The model's input: the image as 1x3xHxW, channels first, each value scaled to 0..=1.
+fn input(image: RgbImage) -> anyhow::Result<Tensor> {
+    let height = usize::try_from(image.height())?;
+    let width = usize::try_from(image.width())?;
+    let channels_last = Array3::from_shape_vec((height, width, 3), image.into_raw())?;
+    let channels_first = channels_last.permuted_axes([2, 0, 1]).insert_axis(Axis(0));
+    Ok(channels_first
+        .mapv(|value| f32::from(value) / 255.0)
+        .as_standard_layout()
+        .into_owned()
+        .into())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn input_is_channels_first_and_scaled_to_one() -> anyhow::Result<()> {
+        let image = RgbImage::from_fn(INPUT_SIDE, INPUT_SIDE, |x, y| {
+            image::Rgb([
+                (x % 256) as u8,
+                (y % 256) as u8,
+                ((x * 7 + y * 13) % 256) as u8,
+            ])
+        });
+        let tensor = input(image.clone())?;
+        let view = tensor.to_array_view::<f32>()?;
+        let side = INPUT_SIDE as usize;
+        assert_eq!(view.shape(), [1, 3, side, side]);
+        for y in 0..INPUT_SIDE {
+            for x in 0..INPUT_SIDE {
+                for c in 0..3 {
+                    let want = f32::from(image.get_pixel(x, y)[c]) / 255.0;
+                    let got = view[[0, c, y as usize, x as usize]];
+                    assert_eq!(
+                        got.to_bits(),
+                        want.to_bits(),
+                        "pixel ({x}, {y}) channel {c}"
+                    );
+                }
+            }
+        }
+        Ok(())
     }
 }

@@ -128,7 +128,11 @@ pub(crate) fn milestone(reps: u32) -> Option<&'static str> {
 /// and side.
 pub(crate) fn square_bounds(width: u32, height: u32) -> (u32, u32, u32) {
     let side = width.min(height);
-    (width.saturating_sub(side) / 2, height.saturating_sub(side) / 2, side)
+    (
+        width.saturating_sub(side) / 2,
+        height.saturating_sub(side) / 2,
+        side,
+    )
 }
 
 #[cfg(test)]
