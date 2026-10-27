@@ -1,5 +1,7 @@
 //! `MoveNet` through tract: a frame in, the four keypoints out.
 
+use std::fmt;
+
 use image::imageops::{FilterType, crop_imm, resize};
 use tract_onnx::prelude::{
     Framework, Graph, InferenceModelExt, SimplePlan, Tensor, TypedFact, TypedOp, tract_ndarray,
@@ -9,6 +11,7 @@ use tract_onnx::prelude::{
 use crate::camera::Frame;
 use crate::domain::{Keypoint, Pose, square_bounds};
 
+/// Where the README's download unpacks the model, relative to the working directory.
 const MODEL_PATH: &str = "models/movenet-onnx-float/movenet.onnx";
 /// `MoveNet` Lightning takes a square of this many pixels.
 const INPUT_SIDE: u32 = 192;
@@ -19,12 +22,26 @@ const RIGHT_SHOULDER: usize = 6;
 const LEFT_WRIST: usize = 9;
 const RIGHT_WRIST: usize = 10;
 
+/// The optimized, runnable form of the ONNX graph.
 type Model = SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>;
 
-pub struct MoveNet(Model);
+/// The `MoveNet` Lightning model, loaded and ready to run.
+pub(crate) struct MoveNet(Model);
+
+/// Prints nothing from the graph.
+impl fmt::Debug for MoveNet {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("MoveNet").finish_non_exhaustive()
+    }
+}
 
 impl MoveNet {
-    pub fn load() -> anyhow::Result<Self> {
+    /// Loads and optimizes the model at [`MODEL_PATH`].
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the file is missing or tract cannot load or optimize it.
+    pub(crate) fn load() -> anyhow::Result<Self> {
         Ok(Self(
             tract_onnx::onnx()
                 .model_for_path(MODEL_PATH)?
@@ -35,7 +52,11 @@ impl MoveNet {
 
     /// Crops the frame square, scales it to the model's input, and reads the
     /// shoulders and wrists out of the answer.
-    pub fn pose(&self, frame: &Frame) -> anyhow::Result<Pose> {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the model fails to run or returns no output.
+    pub(crate) fn pose(&self, frame: &Frame) -> anyhow::Result<Pose> {
         let (x, y, side) = square_bounds(frame.width(), frame.height());
         let square = crop_imm(frame, x, y, side, side).to_image();
         let resized = resize(&square, INPUT_SIDE, INPUT_SIDE, FilterType::Triangle);

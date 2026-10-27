@@ -1,3 +1,5 @@
+//! upsee: counts pullups from the webcam, live in the terminal.
+
 mod camera;
 mod domain;
 mod movenet;
@@ -8,6 +10,7 @@ use camera::Camera;
 use domain::{Counter, Thresholds, milestone};
 use movenet::MoveNet;
 
+/// Opens the camera and model, then counts reps until the process is stopped.
 fn run() -> anyhow::Result<()> {
     let mut camera = Camera::open()?;
     let model = MoveNet::load()?;

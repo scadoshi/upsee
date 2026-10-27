@@ -5,14 +5,14 @@
 /// One body keypoint: its vertical position in the frame, 0 at the top and 1 at
 /// the bottom, and the model's confidence in it.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Keypoint {
+pub(crate) struct Keypoint {
     pub y: f32,
     pub confidence: f32,
 }
 
 /// The four keypoints a pullup is judged on.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Pose {
+pub(crate) struct Pose {
     pub left_shoulder: Keypoint,
     pub right_shoulder: Keypoint,
     pub left_wrist: Keypoint,
@@ -21,7 +21,7 @@ pub struct Pose {
 
 impl Pose {
     /// Mean confidence across the four keypoints.
-    pub fn confidence(&self) -> f32 {
+    pub(crate) fn confidence(&self) -> f32 {
         (self.left_shoulder.confidence
             + self.right_shoulder.confidence
             + self.left_wrist.confidence
@@ -31,7 +31,7 @@ impl Pose {
 
     /// How far the shoulders hang below the wrists, as a fraction of the frame.
     /// Large when hanging, near zero at the top of a pullup.
-    pub fn hang(&self) -> f32 {
+    pub(crate) fn hang(&self) -> f32 {
         f32::midpoint(self.left_shoulder.y, self.right_shoulder.y)
             - f32::midpoint(self.left_wrist.y, self.right_wrist.y)
     }
@@ -41,11 +41,12 @@ impl Pose {
 /// be looked at. The gap between `up` and `down` is what keeps a wobble at
 /// either end from counting twice.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Thresholds {
+pub(crate) struct Thresholds {
     /// A hang below this is the top of a rep.
     pub up: f32,
     /// A hang above this is back at the bottom.
     pub down: f32,
+    /// A frame whose mean keypoint confidence is below this is skipped.
     pub min_confidence: f32,
 }
 
@@ -68,14 +69,14 @@ enum Phase {
 /// Counts reps from a stream of poses. A rep is a rise past `up` from below;
 /// the next one needs a drop past `down` first.
 #[derive(Debug, Clone)]
-pub struct Counter {
+pub(crate) struct Counter {
     thresholds: Thresholds,
     phase: Phase,
     reps: u32,
 }
 
 impl Counter {
-    pub fn new(thresholds: Thresholds) -> Self {
+    pub(crate) fn new(thresholds: Thresholds) -> Self {
         Self {
             thresholds,
             phase: Phase::Down,
@@ -83,13 +84,13 @@ impl Counter {
         }
     }
 
-    pub fn reps(&self) -> u32 {
+    pub(crate) fn reps(&self) -> u32 {
         self.reps
     }
 
     /// Feeds one frame's pose. Returns the new total when this frame completes
     /// a rep. A frame under the confidence floor changes nothing.
-    pub fn observe(&mut self, pose: &Pose) -> Option<u32> {
+    pub(crate) fn observe(&mut self, pose: &Pose) -> Option<u32> {
         if pose.confidence() < self.thresholds.min_confidence {
             return None;
         }
@@ -110,7 +111,7 @@ impl Counter {
 }
 
 /// Something to say when the count reaches a milestone.
-pub fn milestone(reps: u32) -> Option<&'static str> {
+pub(crate) fn milestone(reps: u32) -> Option<&'static str> {
     Some(match reps {
         5 => "Just getting started!",
         10 => "That's what I'm talking about!",
@@ -125,7 +126,7 @@ pub fn milestone(reps: u32) -> Option<&'static str> {
 
 /// The centered square inside a `width` by `height` frame: its top-left corner
 /// and side.
-pub fn square_bounds(width: u32, height: u32) -> (u32, u32, u32) {
+pub(crate) fn square_bounds(width: u32, height: u32) -> (u32, u32, u32) {
     let side = width.min(height);
     ((width - side) / 2, (height - side) / 2, side)
 }
