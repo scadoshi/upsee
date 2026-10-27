@@ -9,6 +9,9 @@ image = "0.25"
 nokhwa = { version = "0.10.10", features = ["input-native"] }
 tract-onnx = "0.22.0"
 
+[patch.crates-io]
+nokhwa-bindings-macos = { path = "vendor/nokhwa-bindings-macos" }
+
 [lints.clippy]
 pedantic = { level = "warn", priority = -1 }
 must_use_candidate = "allow"
