@@ -9,6 +9,7 @@ use domain::{Counter, Thresholds};
 use movenet::MoveNet;
 
 /// Loads the model and opens the camera, then counts reps until the process is stopped.
+#[expect(clippy::print_stdout, reason = "the count is the program's output")]
 fn main() -> anyhow::Result<()> {
     let model = MoveNet::load()?;
     let mut camera = Camera::open()?;

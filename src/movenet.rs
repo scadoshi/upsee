@@ -127,19 +127,21 @@ mod tests {
     use super::*;
 
     #[test]
-    fn input_is_channels_first_and_scaled_to_one() -> anyhow::Result<()> {
+    fn input_is_channels_first_and_scaled_to_one() {
         let byte = |value: u32| value.to_le_bytes()[0];
         let image = RgbImage::from_fn(INPUT_SIDE, INPUT_SIDE, |x, y| {
             image::Rgb([byte(x), byte(y), byte(x ^ y)])
         });
-        let tensor = input(image.clone())?;
+        let tensor = input(image.clone()).unwrap();
         let view = tensor
-            .to_array_view::<f32>()?
-            .into_dimensionality::<Ix4>()?;
-        let side = usize::try_from(INPUT_SIDE)?;
+            .to_array_view::<f32>()
+            .unwrap()
+            .into_dimensionality::<Ix4>()
+            .unwrap();
+        let side = usize::try_from(INPUT_SIDE).unwrap();
         assert_eq!(view.shape(), [1, 3, side, side]);
         for ((_, c, y, x), got) in view.indexed_iter() {
-            let pixel = image.get_pixel(u32::try_from(x)?, u32::try_from(y)?);
+            let pixel = image.get_pixel(u32::try_from(x).unwrap(), u32::try_from(y).unwrap());
             let want = f32::from(pixel[c]) / 255.0;
             assert_eq!(
                 got.to_bits(),
@@ -147,16 +149,15 @@ mod tests {
                 "pixel ({x}, {y}) channel {c}"
             );
         }
-        Ok(())
     }
 
     #[test]
-    fn keypoints_read_y_and_confidence_by_movenet_index() -> anyhow::Result<()> {
+    fn keypoints_read_y_and_confidence_by_movenet_index() {
         let output = ArrayD::from_shape_fn(IxDyn(&[1, 1, 17, 3]), |index| {
             f32::from(u8::try_from(index[2]).unwrap()) * 10.0
                 + f32::from(u8::try_from(index[3]).unwrap())
         });
-        let pose = keypoints(&output.view())?;
+        let pose = keypoints(&output.view()).unwrap();
         assert_eq!(
             pose.left_shoulder,
             Keypoint {
@@ -185,7 +186,6 @@ mod tests {
                 confidence: 102.0
             }
         );
-        Ok(())
     }
 
     #[test]
